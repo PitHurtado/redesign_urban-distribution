@@ -1,19 +1,15 @@
 import pandas as pd
 import folium
-import matplotlib.pyplot as plt
 from branca.element import Figure
 import branca.colormap as cm
-from matplotlib import style
-
-style.use('ggplot') or plt.style.use('ggplot')
-
+from classes import Customer, Satelite
 
 class DrawingMap:
     def __init__(self,
                  location: list[float],
                  ):
         self.map = folium.Map(location=location, zoom_start=12)
-        self.fig = Figure(width=800, height=600)
+        self.fig = Figure(width=1000, height=600)
         self.fig.add_child(self.map)
         self.linear = None
 
@@ -21,7 +17,7 @@ class DrawingMap:
         self.linear = cm.LinearColormap(colors, vmin=minLabel, vmax=maxLabel)
         return self.linear
 
-    def addNodes(self, df: pd.DataFrame, radius=3, fill=True):
+    def addNodes(self, df: pd.DataFrame, radius=3, fill=True, color='blue'):
         if self.linear is not None:
             for row in df.itertuples():
                 folium.CircleMarker(
@@ -38,10 +34,38 @@ class DrawingMap:
                     location=[row.lat, row.lon],
                     radius=radius,
                     fill=fill,
-                    color='blue',
+                    color=color,
                 ).add_to(self.map)
+
+    def addCustomers(self, list_customers: list[Customer], label: str, radius=1, fill=True, color='blue'):
+        if self.linear is not None:
+            for s in list_customers:
+                folium.CircleMarker(
+                    location=[s.lat, s.lon],
+                    radius=radius,
+                    fill=fill,
+                    color=self.linear(s.__dict__[label]),
+                    leyend_name = label
+                ).add_to(self.map)
+            self.map.add_child(self.linear)
+        else:
+            for s in list_customers:
+                folium.CircleMarker(
+                    location=[s.lat, s.lon],
+                    radius=radius,
+                    fill=fill,
+                    color=color,
+                ).add_to(self.map)
+
+    def addCircles(self, df: pd.DataFrame, radius = 8_000):
+        for row in df.itertuples():
+            folium.Circle(
+                location=[row.lat, row.lon],
+                radius=radius,
+                fill = True,
+                color='#B22222'
+            ).add_to(self.map)
 
     def viewMap(self):
         return self.map
 
-# %%
