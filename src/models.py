@@ -1,89 +1,181 @@
-# Gurobi
-from classes import Segment, Satelite
+import gurobipy as gp
+from gurobipy import GRB, quicksum
+from classes import Customer, Satellite
+from src.classes import Customer
 
 
 class Model:
 
-    def __init__(self, arce: dict[(str,str),any], nameModel = "Deterministic"):
-        self.model = gb.Model(nameModel)
+    def __init__(self, name_model="Deterministic"):
+        self.model = gb.Model(name_model)
+
         # variables
         self.X = {}
         self.Y = {}
         self.W = {}
+        self.Z = {}
+        self.R = {}
+        self.ALPHA = {}
+        self.BETA = {}
 
-        #param arce
-        self.arce = arce
-
-        #objetive & metrics
+        # objetive & metrics
         self.results = {}
         self.metrics = {}
 
-    def build(self, segments: list[Segment], satelites: list[Satelite]):
+    def build(self, customers: list[Customer], satellites: list[Satellite], **params):
         self.model.reset()
         # variables
-        self.__addVariables(segments, satelites)
+        self.__addVariables(customers, satellites)
         # objective
-        self.__addObjetive(segments, satelites)
+        self.__addObjective(customers, satellites, params)
         # constraints
-        self.__addConstr_LocationSatelite()
-        self.__addConstr_CapacitySatelite()
-        self.__addConstr_DemandSatified()
+        self.__addConstr_LocationSatellite(satellites)
+        self.__addConstr_AssignSatellite(satellites, customers)
+        self.__addConstr_NumberVehiclesSatellite(satellites, customers, params)
+        self.__addConstr_NumberVehiclesDC(customers, params)
+        self.__addConstr_DemandSatified_large(customers)
+        self.__addConstr_Alpha(customers, satellites)
+        self.__addConstr_Beta(customers)
 
-    def __addVariables(self, segments: list[Segment], satelites: list[Satelite]):
+    def __addVariables(self, customers: list[Customer], satellites: list[Satellite]):
         self.Y = dict(
-            [((s.id,q), self.model.addVar(vtype=GRB.BINARY, name="Y_s%s_q%s" %(s.id,q))) for s in satelites for q in s.capacity.keys()]
+            [(s.id, self.model.addVar(vtype=GRB.BINARY, name="Y_s%s" % s.id)) for s in satellites]
         )
         self.X = dict(
-            [((s.id,k.id), self.model.addVar(vtype=GRB.BINARY, name="X_s%s_k%s" %(s.id,k.id))) for s in satelites for k in segments]
+            [((s.id, k.id), self.model.addVar(vtype=GRB.BINARY, name="X_s%s_k%s" % (s.id, k.id))) for s in satellites
+             for k in customers]
         )
-        self.W  = dict(
-            [((k.id), self.model.addVar(vtype=GRB.BINARY, name="W_k%s" % (k.id))) for k in segments]
+        self.W = dict(
+            [(k.id, self.model.addVar(vtype=GRB.BINARY, name="W_k%s" % k.id)) for k in customers]
+        )
+        self.Z = dict(
+            [(s.id, self.model.addVar(vtype=GRB.INTEGER, lb=0.0, name="Z_s%s" % s.id)) for s in satellites]
+        )
+        self.R = self.model.addVar(vtype=GRB.INTEGER, lb=0.0, name="R_")
+        self.ALPHA = dict(
+            [((s.id, k.id), self.model.addVar(vtype=GRB.CONTINUOUS, lb=0.0, name="A_s%s_k%s" % (s.id, k.id))) for s in
+             satellites for k in customers]
+        )
+        self.BETA = dict(
+            [(k.id, self.model.addVar(vtype=GRB.CONTINUOUS, lb=0.0, name="B_k%s" % k.id)) for k in customers]
         )
 
-    def __addObjective(self, segments: list[Segment], satelites: list[Satelite]):
-        costLocation = quicksum(
-            [s.costFixed[q]*self.Y[(s.id,q)] for s in satelites for q in s.capacity.keys()]
+    def __addObjective(self, customers: list[Customer], satellites: list[Satellite], params):
+        cost_location = quicksum(
+            [s.costFixed * self.Y[s.id] for s in satellites]
         )
-        cost_2e = quicksum(
-            [self.arce[(s_id,k.id)]["totalCost"]*self.X[(s_id,k.id)] for k in segments for s_id in k.setSateliteCoverage]
+        cost_number_vehicles_satellites = quicksum(
+            [s.costPerVehicle * self.Z[s.id] for s in satellites]
         )
-        cost_1e = quicksum(
-            [k.costServedFromDC*self.W[(k.id)] for k in segments]
+        cost_number_vehicles_dc = quicksum(
+            [params['costPerVehicle'] * self.R]
         )
-        costTotal = cost_1e + cost_2e + costLocation
+        cost_items_satellite = quicksum(
+            [params['tariff_from_satellite'][(s.id, k.id)] * self.ALPHA[(s.id, k.id)] for s in satellites for k in
+             customers if k.isSmall]
+        )
+        cost_items_dc = quicksum(
+            [params['tariff_from_dc'][k.id] * self.BETA[k.id] for k in customers]
+        )
+        cost_total = cost_location + cost_number_vehicles_satellites + cost_number_vehicles_dc + cost_items_satellite + cost_items_dc
+        self.model.setObjective(cost_total, GRB.MINIMIZE)
 
-        self.model.setObjective(costTotal, GRB.MINIMIZE)
-
-    def __addConstr_LocationSatelite(self, satelites: list[Satelite]):
-        for s in satelites:
-            nameConstraint = "R_Open_s"+str(s.id)
+    def __addConstr_LocationSatellite(self, satellites: list[Satellite]):
+        for s in satellites:
+            nameConstraint = f'R_Open_s{s.id}'
             self.model.addConstr(
-                quicksum([self.Y[(s.id,q)] for q in s.capacity.keys()]) <= 1
+                quicksum([self.Y[s.id]]) <= 1
                 , name=nameConstraint
             )
 
-    def __addConstr_CapacitySatelite(self, satelites: list[Satelite]):
-        for s in satelites:
-            nameConstraint = "R_capacity_"+str(s.id)
+    def __addConstr_AssignSatellite(self, satellite: list[Satellite], customers: list[Customer]):
+        for s in satellite:
+            for k in customers:
+                if k.isSmall:
+                    nameConstraint = f'R_assign_s{s.id}_k{k.id}'
+                    self.model.addConstr(
+                        self.X[(s.id, k.id)] <= self.Y[s.id]
+                        , name=nameConstraint
+                    )
+
+    def __addConstr_NumberVehiclesSatellite(self, customers: list[Customer], satellites: list[Satellite], params):
+        for s in satellites:
+            nameConstraint = f'R_numV_s{s.id}'
             self.model.addConstr(
                 quicksum(
-                    [self.arce[(s.id,k_id)]['fleetSize']*self.X[(s.id,k_id)] for k_id in s.setSegmentCoverage]
+                    [k.demand * self.X[(s.id, k.id)] for k in customers if k.isSmall]
                 )
                 - quicksum(
-                    [s.numberVehiclesAvailable[q]*self.Y[(s.id,q)] for q in s.capacity.keys()]
+                    [params['capacity_small_vehicle'] * self.Z[s.id]]
                 )
                 <= 0
                 , name=nameConstraint
             )
 
-    def __addConstr_DemandSatified(self, segments: list[Segment]):
-        for k in segments:
-            nameConstraint = "R_Demand_k"+str(k.id)
+    def __addConstr_NumberVehiclesDC(self, customers: list[Customer], params):
+        nameConstraint = "R_numV_DC"
+        self.model.addConstr(
+            quicksum(
+                [k.demand * self.W[k.id] for k in customers]
+            )
+            - quicksum(
+                [params['capacity_large_vehicle'] * self.R]
+            )
+            <= 0
+            , name=nameConstraint
+        )
+
+    def __addConstr_DemandSatified_small(self, customers: list[Customer], satellites: list[Satellite]):
+        for k in customers:
+            if k.isSmall:
+                nameConstraint = f'R_Demand_k{k.id}'
+                self.model.addConstr(
+                    quicksum(
+                        [self.X[(s.id, k.id)] for s in satellites].append(self.W[k.id])
+                    )
+                    == 1
+                    , name=nameConstraint
+                )
+    def __addConstr_DemandSatified_large(self, customers: list[Customer]):
+        for k in customers:
+            if k.isSmall:
+                continue
+            nameConstraint = f'R_Demand_k{k.id}'
             self.model.addConstr(
                 quicksum(
-                    [self.X[(s_id,k.id)] for s_id in k.setSateliteCoverage].append(self.W[(k.id)])
+                    [self.W[k.id]]
                 )
                 == 1
+                , name=nameConstraint
+            )
+    def __addConstr_Alpha(self, customers: list[Customer], satellites: list[Satellite]):
+        for s in satellites:
+            for k in customers:
+                if k.isSmall:
+                    nameConstraint = f'R_alpha_s{s.id}_k{k.id}'
+                    self.model.addConstr(
+                        quicksum(
+                            [k.demand * self.X[(s.id, k.id)]]
+                        )
+                        - quicksum(
+                            [self.ALPHA[(s.id, k.id)]]
+                        )
+                        == 0
+                        , name=nameConstraint
+                    )
+    def __addConstr_Beta(self, customers: list[Customer]):
+        for k in customers:
+            if k.isSmall:
+                continue
+            nameConstraint = f'R_beta_k{k.id}'
+            self.model.addConstr(
+                quicksum(
+                    [k.demand * self.W[k.id]]
+                )
+                - quicksum(
+                    [self.BETA[k.id]]
+                )
+                == 0
                 , name=nameConstraint
             )
 
@@ -94,6 +186,6 @@ class Model:
     def showModel(self):
         self.model.display()
 
-    def setParams(self, params: dict[str,int]):
+    def setParams(self, params: dict[str, int]):
         for key, item in params.items():
-            self.model.setParam(key,item)
+            self.model.setParam(key, item)
