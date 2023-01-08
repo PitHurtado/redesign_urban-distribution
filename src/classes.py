@@ -1,5 +1,4 @@
 class Segment:
-    # All parameters are by Month
     def __init__(self,
                  id: str,
                  lon: float, lat: float,
@@ -12,7 +11,7 @@ class Segment:
                  sales: float,
                  customers: int,
                  avgDropSize: float,
-                 setSatelitesCoverage: list[str],
+                 setSatellitesCoverage: list[str],
                  costServedFromDC: int,
                  ):
         self.id = id
@@ -26,21 +25,19 @@ class Segment:
         self.customers = customers
         self.sales = sales
         self.avgDropSize = avgDropSize
-        self.setSateliteCoverage = setSatelitesCoverage
+        self.setSatelliteCoverage = setSatellitesCoverage
         self.costServedFromDC = costServedFromDC
 
 
-class Satelite:
+class Satellite:
     def __init__(self,
                  id: str,
                  lon: float, lat: float,
                  distanceFromDC: float,
                  durationFromDC: float,
                  durationInTrafficFromDC: float,
-                 capacity: dict[str, int],
-                 numberVehiclesAvailable: dict[str, int],
-                 costFixed: dict[str, int],
-                 setSegmentCoverage: list[str],
+                 costFixed: float,
+                 costPerVehicle: float,
                  ):
         self.id = id
         self.lon = lon
@@ -49,10 +46,8 @@ class Satelite:
         self.distanceFromDC = distanceFromDC
         self.durationFromDC = durationFromDC
         self.durationInTrafficFromDC = durationInTrafficFromDC
-        self.capacity = capacity
-        self.numberVehiclesAvailable = numberVehiclesAvailable
         self.costFixed = costFixed
-        self.setSegmentCoverage = setSegmentCoverage
+        self.costPerVehicle = costPerVehicle
 
 
 class Customer:
@@ -60,7 +55,8 @@ class Customer:
                  id: str,
                  lon: float, lat: float,
                  demand: float,
-                 category: float
+                 category: float,
+                 isSmall: bool
                  ):
         self.id = str(id)
         self.lon = lon
@@ -68,3 +64,11 @@ class Customer:
         self.geographyLocation = (lon, lat)
         self.demand = demand
         self.category = category
+        self.isSmall = isSmall
+
+class Vehicle:
+    def __init(self,
+               id: str,
+               capacity: float):
+        self.id = str(id)
+        self.capacity = capacity
