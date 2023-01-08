@@ -1,8 +1,6 @@
-import gurobipy as gp
-from gurobipy import GRB, quicksum
+#import gurobipy as gp
+#from gurobipy import GRB, quicksum
 from classes import Customer, Satellite
-from src.classes import Customer
-
 
 class Model:
 
@@ -68,7 +66,7 @@ class Model:
             [s.costPerVehicle * self.Z[s.id] for s in satellites]
         )
         cost_number_vehicles_dc = quicksum(
-            [params['costPerVehicle'] * self.R]
+            [params['cost_per_vehicle'] * self.R]
         )
         cost_items_satellite = quicksum(
             [params['tariff_from_satellite'][(s.id, k.id)] * self.ALPHA[(s.id, k.id)] for s in satellites for k in
