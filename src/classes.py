@@ -1,4 +1,11 @@
-class Segment:
+class Locatable:
+    def __init__(self
+               , lon: float
+               , lat: float):
+        self.lon = lon
+        self.lat = lat
+
+class Segment(Locatable):
     def __init__(self,
                 id: str,
                 lon: float, lat: float,
@@ -11,11 +18,10 @@ class Segment:
                 sales: float,
                 customers: int,
                 avgDropSize: float,
-                setSatellitesCoverage: list[str],
-                costServedFromDC: int,
+                k: float = 0,
                 ):
         self.id = id
-        self.geographyLocation = (lon, lat)
+        Locatable.__init__(self,lon, lat)
         self.areaKm = areaKm
         self.avgTickets = avgTickets
         self.avgCustomers = avgCustomers
@@ -25,11 +31,11 @@ class Segment:
         self.customers = customers
         self.sales = sales
         self.avgDropSize = avgDropSize
-        self.setSatelliteCoverage = setSatellitesCoverage
-        self.costServedFromDC = costServedFromDC
+        self.k = k
 
 
-class Satellite:
+
+class Satellite(Locatable):
     def __init__(self,
                 id: str,
                 lon: float, lat: float,
@@ -37,39 +43,16 @@ class Satellite:
                 durationFromDC: float,
                 durationInTrafficFromDC: float,
                 costFixed: dict[str, float],
-                costPerVehicle: float,
                 capacity: dict[str, float]
                 ):
         self.id = id
-        self.lon = lon
-        self.lat = lat
-        self.geographyLocation = (lon, lat)
+        Locatable.__init__(self, lon, lat)
+
         self.distanceFromDC = distanceFromDC
         self.durationFromDC = durationFromDC
         self.durationInTrafficFromDC = durationInTrafficFromDC
         self.costFixed = costFixed
         self.capacity = capacity
-
-
-# class Customer:
-#     def __init__(self,
-#                 id: str,
-#                 lon: float, lat: float,
-#                 demand: list[float],
-#                 category: float,
-#                 isLow: bool,
-#                 fee_min_satellite: float,
-#                 fee_min_dc: float,
-#                 ):
-#         self.id = str(id)
-#         self.lon = lon
-#         self.lat = lat
-#         self.geographyLocation = (lon, lat)
-#         self.demand = demand
-#         self.category = category
-#         self.isLow = isLow
-#         self.fee_min_satellite = fee_min_satellite
-#         self.fee_min_dc = fee_min_dc
 
 
 class Vehicle:
