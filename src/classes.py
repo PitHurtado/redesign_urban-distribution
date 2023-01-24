@@ -1,19 +1,19 @@
 class Segment:
     def __init__(self,
-                 id: str,
-                 lon: float, lat: float,
-                 areaKm: float,
-                 avgTickets: float,
-                 avgCustomers: float,
-                 avgPackages: float,
-                 avgPackagesBySales: float,
-                 packages: float,
-                 sales: float,
-                 customers: int,
-                 avgDropSize: float,
-                 setSatellitesCoverage: list[str],
-                 costServedFromDC: int,
-                 ):
+                id: str,
+                lon: float, lat: float,
+                areaKm: float,
+                avgTickets: float,
+                avgCustomers: float,
+                avgPackages: float,
+                avgPackagesBySales: float,
+                packages: float,
+                sales: float,
+                customers: int,
+                avgDropSize: float,
+                setSatellitesCoverage: list[str],
+                costServedFromDC: int,
+                ):
         self.id = id
         self.geographyLocation = (lon, lat)
         self.areaKm = areaKm
@@ -31,14 +31,15 @@ class Segment:
 
 class Satellite:
     def __init__(self,
-                 id: str,
-                 lon: float, lat: float,
-                 distanceFromDC: float,
-                 durationFromDC: float,
-                 durationInTrafficFromDC: float,
-                 costFixed: float,
-                 costPerVehicle: float,
-                 ):
+                id: str,
+                lon: float, lat: float,
+                distanceFromDC: float,
+                durationFromDC: float,
+                durationInTrafficFromDC: float,
+                costFixed: dict[str, float],
+                costPerVehicle: float,
+                capacity: dict[str, float]
+                ):
         self.id = id
         self.lon = lon
         self.lat = lat
@@ -47,35 +48,35 @@ class Satellite:
         self.durationFromDC = durationFromDC
         self.durationInTrafficFromDC = durationInTrafficFromDC
         self.costFixed = costFixed
-        self.costPerVehicle = costPerVehicle
+        self.capacity = capacity
 
 
-class Customer:
-    def __init__(self,
-                 id: str,
-                 lon: float, lat: float,
-                 demand: list[float],
-                 category: float,
-                 isLow: bool,
-                 fee_min_satellite: float,
-                 fee_min_dc: float,
-                 ):
-        self.id = str(id)
-        self.lon = lon
-        self.lat = lat
-        self.geographyLocation = (lon, lat)
-        self.demand = demand
-        self.category = category
-        self.isLow = isLow
-        self.fee_min_satellite = fee_min_satellite
-        self.fee_min_dc = fee_min_dc
+# class Customer:
+#     def __init__(self,
+#                 id: str,
+#                 lon: float, lat: float,
+#                 demand: list[float],
+#                 category: float,
+#                 isLow: bool,
+#                 fee_min_satellite: float,
+#                 fee_min_dc: float,
+#                 ):
+#         self.id = str(id)
+#         self.lon = lon
+#         self.lat = lat
+#         self.geographyLocation = (lon, lat)
+#         self.demand = demand
+#         self.category = category
+#         self.isLow = isLow
+#         self.fee_min_satellite = fee_min_satellite
+#         self.fee_min_dc = fee_min_dc
 
 
 class Vehicle:
     def __init__(self
-                 , id: str
-                 , capacity: float
-                 , cost: float):
+                , id: str
+                , capacity: float
+                , costFixed: float):
         self.id = str(id)
         self.capacity = capacity
-        self.cost = cost
+        self.costFixed = costFixed
