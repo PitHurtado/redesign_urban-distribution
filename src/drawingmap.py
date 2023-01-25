@@ -12,7 +12,7 @@ class DrawingMap:
         self.map = folium.Map(location=location, zoom_start=12)
         self.fig = Figure(width=800, height=600)
         self.fig.add_child(self.map)
-        folium.TileLayer(style).add_to(self.map)
+        #folium.TileLayer(style).add_to(self.map)
 
     def setHue(self, minLabel: int, maxLabel: int, colors=["blue", "yellow", "red"]):
         self.linear = cm.LinearColormap(colors, vmin=minLabel, vmax=maxLabel)
@@ -32,14 +32,11 @@ class DrawingMap:
                          fill=fill,
                          color=color)
 
-    # def addCircles(self, df: pd.DataFrame, radius=8_000):
-    #     for row in df.itertuples():
-    #         folium.Circle(
-    #             location=[row.lat, row.lon],
-    #             radius=radius,
-    #             fill=True,
-    #             color='#B22222'
-    #         ).add_to(self.map)
+    def addMarker(self, location, label: str):
+        folium.Marker(
+            location=location,
+            popup=label,
+        ).add_to(self.map)
 
     def viewMap(self):
         return self.map

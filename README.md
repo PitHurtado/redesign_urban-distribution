@@ -2,7 +2,7 @@
 
 # Strategic of an Urban Distribution Network
 
-@author:s P. Hurtado-Cayo, J. Pina-Pardo
+@authors: P. Hurtado-Cayo, J. Pina-Pardo
 
 ## Install dependences:
 Run:

@@ -1,6 +1,6 @@
 import gurobipy as gb
 from gurobipy import GRB, quicksum
-from classes import Segment, Satellite
+from classes import Cluster, Satellite
 
 
 class Model_Multiperiod:
@@ -17,7 +17,7 @@ class Model_Multiperiod:
         self.results = {}
         self.metrics = {}
 
-    def build(self, satellites: list[Satellite], segments: list[Segment], vehicles_required: dict[str, dict],
+    def build(self, satellites: list[Satellite], segments: list[Cluster], vehicles_required: dict[str, dict],
               costs: dict[str, dict]):
         self.model.reset()
 
@@ -32,7 +32,7 @@ class Model_Multiperiod:
         self.__addConstr_CapacitySatellite(satellites, segments, vehicles_required)
         self.__addConstr_DemandSatified(satellites, segments)
 
-    def __addVariables(self, satellites: list[Satellite], segments: list[Segment]):
+    def __addVariables(self, satellites: list[Satellite], segments: list[Cluster]):
         self.Y = dict([
             ((s.id, q_id), self.model.addVar(vtype=GRB.BINARY, name=f'Y_s{s.id}_q{q_id}')) for s in satellites for q_id
             in s.capacity.keys()
@@ -46,7 +46,7 @@ class Model_Multiperiod:
             range(self.PERIODS)
         ])
 
-    def __addObjective(self, satellites: list[Satellite], segments: list[Segment], costs: dict[str, dict]):
+    def __addObjective(self, satellites: list[Satellite], segments: list[Cluster], costs: dict[str, dict]):
         cost_allocation_satellites = quicksum([
             s.costFixed[q_id] * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
         ])
@@ -73,7 +73,7 @@ class Model_Multiperiod:
                 , name=nameConstraint
             )
 
-    def __addConstr_CapacitySatellite(self, satellites: list[Satellite], segments: list[Segment],
+    def __addConstr_CapacitySatellite(self, satellites: list[Satellite], segments: list[Cluster],
                                       vehicles_required: dict[str, dict]):
         for t in range(self.PERIODS):
             for s in satellites:
@@ -89,7 +89,7 @@ class Model_Multiperiod:
                     , name=nameConstraint
                 )
 
-    def __addConstr_DemandSatified(self, satellites: list[Satellite], segments: list[Segment]):
+    def __addConstr_DemandSatified(self, satellites: list[Satellite], segments: list[Cluster]):
         for t in range(self.PERIODS):
             for k in segments:
                 nameConstraint = f'R_demand_k{k.id}_t{t}'

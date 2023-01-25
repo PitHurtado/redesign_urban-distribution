@@ -5,7 +5,7 @@ class Locatable:
         self.lon = lon
         self.lat = lat
 
-class Segment(Locatable):
+class Cluster(Locatable):
     def __init__(self,
                 id: str,
                 lon: float, lat: float,
