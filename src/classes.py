@@ -1,22 +1,27 @@
-class Segment:
-    # All parameters are by Month
+class Locatable:
+    def __init__(self
+               , lon: float
+               , lat: float):
+        self.lon = lon
+        self.lat = lat
+
+class Cluster(Locatable):
     def __init__(self,
-                 id: str,
-                 lon: float, lat: float,
-                 areaKm: float,
-                 avgTickets: float,
-                 avgCustomers: float,
-                 avgPackages: float,
-                 avgPackagesBySales: float,
-                 packages: float,
-                 sales: float,
-                 customers: int,
-                 avgDropSize: float,
-                 setSatelitesCoverage: list[str],
-                 costServedFromDC: int,
-                 ):
+                id: str,
+                lon: float, lat: float,
+                areaKm: float,
+                avgTickets: float,
+                avgCustomers: float,
+                avgPackages: float,
+                avgPackagesBySales: float,
+                packages: float,
+                sales: float,
+                customers: int,
+                avgDropSize: float,
+                k: float = 0,
+                ):
         self.id = id
-        self.geographyLocation = (lon, lat)
+        Locatable.__init__(self,lon, lat)
         self.areaKm = areaKm
         self.avgTickets = avgTickets
         self.avgCustomers = avgCustomers
@@ -26,45 +31,35 @@ class Segment:
         self.customers = customers
         self.sales = sales
         self.avgDropSize = avgDropSize
-        self.setSateliteCoverage = setSatelitesCoverage
-        self.costServedFromDC = costServedFromDC
+        self.k = k
 
 
-class Satelite:
+
+class Satellite(Locatable):
     def __init__(self,
-                 id: str,
-                 lon: float, lat: float,
-                 distanceFromDC: float,
-                 durationFromDC: float,
-                 durationInTrafficFromDC: float,
-                 capacity: dict[str, int],
-                 numberVehiclesAvailable: dict[str, int],
-                 costFixed: dict[str, int],
-                 setSegmentCoverage: list[str],
-                 ):
+                id: str,
+                lon: float, lat: float,
+                distanceFromDC: float,
+                durationFromDC: float,
+                durationInTrafficFromDC: float,
+                costFixed: dict[str, float],
+                capacity: dict[str, float]
+                ):
         self.id = id
-        self.lon = lon
-        self.lat = lat
-        self.geographyLocation = (lon, lat)
+        Locatable.__init__(self, lon, lat)
+
         self.distanceFromDC = distanceFromDC
         self.durationFromDC = durationFromDC
         self.durationInTrafficFromDC = durationInTrafficFromDC
-        self.capacity = capacity
-        self.numberVehiclesAvailable = numberVehiclesAvailable
         self.costFixed = costFixed
-        self.setSegmentCoverage = setSegmentCoverage
+        self.capacity = capacity
 
 
-class Customer:
-    def __init__(self,
-                 id: str,
-                 lon: float, lat: float,
-                 demand: float,
-                 category: float
-                 ):
+class Vehicle:
+    def __init__(self
+                , id: str
+                , capacity: float
+                , costFixed: float):
         self.id = str(id)
-        self.lon = lon
-        self.lat = lat
-        self.geographyLocation = (lon, lat)
-        self.demand = demand
-        self.category = category
+        self.capacity = capacity
+        self.costFixed = costFixed

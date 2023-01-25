@@ -1,91 +1,108 @@
-# Gurobi
-from classes import Segment, Satelite
+import gurobipy as gb
+from gurobipy import GRB, quicksum
+from classes import Cluster, Satellite
 
 
-class Model:
+class Model_Multiperiod:
+    def __init__(self, periods: int, name_model="Deterministic"):
+        self.model = gb.Model(name_model)
+        self.PERIODS = periods
 
-    def __init__(self, arce: dict[(str,str),any], nameModel = "Deterministic"):
-        self.model = gb.Model(nameModel)
         # variables
         self.X = {}
         self.Y = {}
         self.W = {}
 
-        #param arce
-        self.arce = arce
-
-        #objetive & metrics
+        # objetive & metrics
         self.results = {}
         self.metrics = {}
 
-    def build(self, segments: list[Segment], satelites: list[Satelite]):
+    def build(self, satellites: list[Satellite], segments: list[Cluster], vehicles_required: dict[str, dict],
+              costs: dict[str, dict]):
         self.model.reset()
+
         # variables
-        self.__addVariables(segments, satelites)
+        self.__addVariables(satellites, segments)
+
         # objective
-        self.__addObjetive(segments, satelites)
+        self.__addObjective(satellites, segments, costs)
+
         # constraints
-        self.__addConstr_LocationSatelite()
-        self.__addConstr_CapacitySatelite()
-        self.__addConstr_DemandSatified()
+        self.__addConstr_AllocationSatellite(satellites)
+        self.__addConstr_CapacitySatellite(satellites, segments, vehicles_required)
+        self.__addConstr_DemandSatified(satellites, segments)
 
-    def __addVariables(self, segments: list[Segment], satelites: list[Satelite]):
-        self.Y = dict(
-            [((s.id,q), self.model.addVar(vtype=GRB.BINARY, name="Y_s%s_q%s" %(s.id,q))) for s in satelites for q in s.capacity.keys()]
-        )
+    def __addVariables(self, satellites: list[Satellite], segments: list[Cluster]):
+        self.Y = dict([
+            ((s.id, q_id), self.model.addVar(vtype=GRB.BINARY, name=f'Y_s{s.id}_q{q_id}')) for s in satellites for q_id
+            in s.capacity.keys()
+        ])
         self.X = dict(
-            [((s.id,k.id), self.model.addVar(vtype=GRB.BINARY, name="X_s%s_k%s" %(s.id,k.id))) for s in satelites for k in segments]
+            [((s.id, k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'X_s{s.id}_k{k.id}_t{t}')) for s in satellites
+             for k in segments for t in range(self.PERIODS)]
         )
-        self.W  = dict(
-            [((k.id), self.model.addVar(vtype=GRB.BINARY, name="W_k%s" % (k.id))) for k in segments]
-        )
+        self.W = dict([
+            ((k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'W_k{k.id}_t{t}')) for k in segments for t in
+            range(self.PERIODS)
+        ])
 
-    def __addObjective(self, segments: list[Segment], satelites: list[Satelite]):
-        costLocation = quicksum(
-            [s.costFixed[q]*self.Y[(s.id,q)] for s in satelites for q in s.capacity.keys()]
-        )
-        cost_2e = quicksum(
-            [self.arce[(s_id,k.id)]["totalCost"]*self.X[(s_id,k.id)] for k in segments for s_id in k.setSateliteCoverage]
-        )
-        cost_1e = quicksum(
-            [k.costServedFromDC*self.W[(k.id)] for k in segments]
-        )
-        costTotal = cost_1e + cost_2e + costLocation
+    def __addObjective(self, satellites: list[Satellite], segments: list[Cluster], costs: dict[str, dict]):
+        cost_allocation_satellites = quicksum([
+            s.costFixed[q_id] * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
+        ])
 
-        self.model.setObjective(costTotal, GRB.MINIMIZE)
+        cost_served_from_satellite = quicksum([
+            costs['satellite'][(s.id, k.id, t)] * self.X[(s.id, k.id, t)] for s in satellites for k in segments for t in
+            range(self.PERIODS)
+        ])
 
-    def __addConstr_LocationSatelite(self, satelites: list[Satelite]):
-        for s in satelites:
-            nameConstraint = "R_Open_s"+str(s.id)
+        cost_served_from_dc = quicksum([
+            costs['dc'][(k.id, t)] * self.W[(k.id, t)] for k in segments for t in range(self.PERIODS)
+        ])
+
+        cost_total = cost_allocation_satellites + cost_served_from_dc + cost_served_from_satellite
+        self.model.setObjective(cost_total, GRB.MINIMIZE)
+
+    def __addConstr_AllocationSatellite(self, satellites: list[Satellite]):
+        for s in satellites:
+            nameConstraint = f'R_Open_s{s.id}'
             self.model.addConstr(
-                quicksum([self.Y[(s.id,q)] for q in s.capacity.keys()]) <= 1
+                quicksum([
+                    self.Y[(s.id, q_id)] for q_id in s.capacity.keys()
+                ]) <= 1
                 , name=nameConstraint
             )
 
-    def __addConstr_CapacitySatelite(self, satelites: list[Satelite]):
-        for s in satelites:
-            nameConstraint = "R_capacity_"+str(s.id)
-            self.model.addConstr(
-                quicksum(
-                    [self.arce[(s.id,k_id)]['fleetSize']*self.X[(s.id,k_id)] for k_id in s.setSegmentCoverage]
+    def __addConstr_CapacitySatellite(self, satellites: list[Satellite], segments: list[Cluster],
+                                      vehicles_required: dict[str, dict]):
+        for t in range(self.PERIODS):
+            for s in satellites:
+                nameConstraint = f'R_capacity_s{s.id}_t{t}'
+                self.model.addConstr(
+                    quicksum([
+                        self.X[(s.id, k.id, t)] * vehicles_required["small"][(s.id, k.id, t)] for k in segments
+                    ])
+                    - quicksum([
+                        self.Y[(s.id, q_id)] * s.capacity[q_id] for q_id in s.capacity.keys()
+                    ])
+                    <= 0
+                    , name=nameConstraint
                 )
-                - quicksum(
-                    [s.numberVehiclesAvailable[q]*self.Y[(s.id,q)] for q in s.capacity.keys()]
-                )
-                <= 0
-                , name=nameConstraint
-            )
 
-    def __addConstr_DemandSatified(self, segments: list[Segment]):
-        for k in segments:
-            nameConstraint = "R_Demand_k"+str(k.id)
-            self.model.addConstr(
-                quicksum(
-                    [self.X[(s_id,k.id)] for s_id in k.setSateliteCoverage].append(self.W[(k.id)])
+    def __addConstr_DemandSatified(self, satellites: list[Satellite], segments: list[Cluster]):
+        for t in range(self.PERIODS):
+            for k in segments:
+                nameConstraint = f'R_demand_k{k.id}_t{t}'
+                self.model.addConstr(
+                    quicksum([
+                        self.X[(s.id, k.id, t)] for s in satellites
+                    ])
+                    + quicksum([
+                        self.W[(k.id, t)]
+                    ])
+                    == 1
+                    , name=nameConstraint
                 )
-                == 1
-                , name=nameConstraint
-            )
 
     def optimizeModel(self) -> str:
         self.model.optimize()
@@ -94,6 +111,6 @@ class Model:
     def showModel(self):
         self.model.display()
 
-    def setParams(self, params: dict[str,int]):
+    def setParams(self, params: dict[str, int]):
         for key, item in params.items():
-            self.model.setParam(key,item)
+            self.model.setParam(key, item)
