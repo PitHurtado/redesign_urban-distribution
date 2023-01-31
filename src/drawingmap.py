@@ -12,7 +12,8 @@ class DrawingMap:
         self.map = folium.Map(location=location, zoom_start=12)
         self.fig = Figure(width=800, height=600)
         self.fig.add_child(self.map)
-        #folium.TileLayer(style).add_to(self.map)
+        self.linear = None
+        # folium.TileLayer(style).add_to(self.map)
 
     def setHue(self, minLabel: int, maxLabel: int, colors=["blue", "yellow", "red"]):
         self.linear = cm.LinearColormap(colors, vmin=minLabel, vmax=maxLabel)
@@ -25,9 +26,10 @@ class DrawingMap:
             fill=fill,
             color=color
         ).add_to(self.map)
+
     def addNodes(self, list_locatables: list[Locatable], radius=1, fill=True, color='blue'):
         for obj in list_locatables:
-            self.addNode(location = (obj.lat,obj.lon),
+            self.addNode(location=(obj.lat, obj.lon),
                          radius=radius,
                          fill=fill,
                          color=color)

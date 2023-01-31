@@ -4,3 +4,5 @@ matplotlib
 jupyter
 seaborn
 gurobipy
+folium
+branca
