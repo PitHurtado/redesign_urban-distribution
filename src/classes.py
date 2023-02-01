@@ -49,7 +49,7 @@ class Satellite(Locatable):
                  durationFromDC: float,
                  durationInTrafficFromDC: float,
                  costFixed: dict[str, float],
-                 costOperation: dict[(str, int), float],
+                 costOperation: dict[int, float],
                  costSourcing: float,
                  capacity: dict[str, float]
                  ):

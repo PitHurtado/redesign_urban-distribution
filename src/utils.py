@@ -19,7 +19,7 @@ class LoadingData:
                                       , durationFromDC=df.loc[i, 'duration.value'] / 3600
                                       , durationInTrafficFromDC=df.loc[i, 'duration_in_traffic.value'] / 3600
                                       , costFixed=json.loads(df.loc[i, 'costFixed'])
-                                      , costOperation=json.loads(df.loc[i, 'costOperation'])
+                                      , costOperation=list(np.float_(list(str(df.loc[i, 'cost_operation']).split("|"))))
                                       , costSourcing=df.loc[i, 'cost_sourcing']
                                       , capacity=json.loads(df.loc[i, 'capacity'])
                                       )

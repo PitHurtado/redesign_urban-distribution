@@ -18,6 +18,8 @@ class Model:
     def setParams(self, params: dict[str, int]):
         for key, item in params.items():
             self.model.setParam(key, item)
+    
+    
 
 
 class ModelDeterministic(Model):
@@ -41,8 +43,7 @@ class ModelDeterministic(Model):
         self.results = {}
         self.metrics = {}
 
-    def build(self, satellites: list[Satellite], clusters: list[Cluster], vehicles_required: dict[str, dict],
-              costs: dict[str, dict]):
+    def build(self, satellites: list[Satellite], clusters: list[Cluster], vehicles_required: dict[str, dict], costs: dict[str, dict]) -> dict[str, float]:
         self.model.reset()
 
         # variables
@@ -53,8 +54,12 @@ class ModelDeterministic(Model):
 
         # constraints
         self.__addConstr_AllocationSatellite(satellites)
+        self.__addConstr_OperatingSatellite(satellites)
+        self.__addConstr_AssignClusterToSallite(satellites, clusters)
         self.__addConstr_CapacitySatellite(satellites, clusters, vehicles_required)
         self.__addConstr_DemandSatified(satellites, clusters)
+
+        return {'time_building': 1000}
 
     def __addVariables(self, satellites: list[Satellite], clusters: list[Cluster]) -> None:
         self.Y = dict([
@@ -62,12 +67,10 @@ class ModelDeterministic(Model):
             in s.capacity.keys()
         ])
         self.X = dict([
-            ((s.id, q_id, t), self.model.addVar(vtype=GRB.BINARY, name=f'X_s{s.id}_q{q_id}_t{t}')) for s in satellites
-            for q_id in s.capacity.keys() for t in range(self.PERIODS)
+            ((s.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'X_s{s.id}_t{t}')) for s in satellites for t in range(self.PERIODS)
         ])
         self.Z = dict(
-            [((s.id, k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'Z_s{s.id}_k{k.id}_t{t}')) for s in satellites
-             for k in clusters for t in range(self.PERIODS)]
+            [((s.id, k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'Z_s{s.id}_k{k.id}_t{t}')) for s in satellites for k in clusters for t in range(self.PERIODS)]
         )
         self.W = dict([
             ((k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'W_k{k.id}_t{t}')) for k in clusters for t in
@@ -80,8 +83,7 @@ class ModelDeterministic(Model):
         ])
 
         cost_operating_satellites = quicksum([
-            s.costOperation[(q_id, t)] * self.X[(s.id, q_id, t)] for s in satellites for q_id in s.capacity.keys() for t
-            in range(self.PERIODS)
+            s.costOperation[t] * self.X[(s.id, t)] for s in satellites for t in range(self.PERIODS)
         ])
 
         cost_served_from_satellite = quicksum([
@@ -106,9 +108,31 @@ class ModelDeterministic(Model):
                 ]) <= 1
                 , name=nameConstraint
             )
+    
+    def __addConstr_OperatingSatellite(self, satellites: list[Satellite]):
+        for t in range(self.PERIODS):
+            for s in satellites:
+                nameConstraint = f'R_Operating_s{s.id}_{t}'
+                self.model.addConstr(
+                    self.X[(s.id, t)]
+                    - quicksum([
+                        self.Y[(s.id, q_id, t)] for q_id in s.capacity.keys()
+                    ])
+                    <= 0
+                    , name=nameConstraint
+                )
+    def __addConstr_AssignClusterToSallite(self, satellites: list[Satellite], clusters: list[Cluster]):
+        for t in range(self.PERIODS):
+            for k in clusters:
+                for s in satellites:
+                    nameConstratin = f'R_Assign_s{s.id}_k{k.id}_t{t}'
+                    self.model.addConstr(
+                        self.Z[(s.id, k.id, t)] - self.X[(s.id, t)]
+                        <= 0
+                        , name=nameConstratin
+                    )
 
-    def __addConstr_CapacitySatellite(self, satellites: list[Satellite], clusters: list[Cluster],
-                                      vehicles_required: dict[str, dict]):
+    def __addConstr_CapacitySatellite(self, satellites: list[Satellite], clusters: list[Cluster], vehicles_required: dict[str, dict]):
         for t in range(self.PERIODS):
             for s in satellites:
                 nameConstraint = f'R_capacity_s{s.id}_t{t}'
