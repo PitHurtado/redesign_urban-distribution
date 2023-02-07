@@ -1,8 +1,5 @@
-numpy
-pandas
-matplotlib
-jupyter
-seaborn
-gurobipy
-folium
-branca
+numpy~=1.23.4
+pandas~=1.5.2
+gurobipy~=10.0.0
+folium~=0.14.0
+branca~=0.6.0

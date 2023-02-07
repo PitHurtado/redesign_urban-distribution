@@ -11,14 +11,8 @@ class Cluster(Locatable):
                  id_c: str,
                  lon: float, lat: float,
                  areaKm: float,
-                 avgTickets: float,
-                 avgCustomers: float,
-                 avgPackages: float,
-                 avgPackagesBySales: float,
-                 packages: float,
-                 sales: float,
-                 customers: int,
-                 demand: list[float],
+                 customersByPeriod: list[float],
+                 demandByPeriod: list[float],
                  avgDrop: list[float],
                  speed_intra: dict[str, float],
                  avgStopDensity: list[float],
@@ -27,14 +21,8 @@ class Cluster(Locatable):
         self.id = id_c
         Locatable.__init__(self, lon, lat)
         self.areaKm = areaKm
-        self.avgTickets = avgTickets
-        self.avgCustomers = avgCustomers
-        self.avgPackages = avgPackages
-        self.avgPackagesBySales = avgPackagesBySales
-        self.packages = packages
-        self.customers = customers
-        self.sales = sales
-        self.demand = demand
+        self.customersByPeriod = customersByPeriod
+        self.demandByPeriod = demandByPeriod
         self.avgDrop = avgDrop
         self.avgStopDensity = avgStopDensity
         self.speed_intra = speed_intra
@@ -49,7 +37,7 @@ class Satellite(Locatable):
                  durationFromDC: float,
                  durationInTrafficFromDC: float,
                  costFixed: dict[str, float],
-                 costOperation: dict[int, float],
+                 costOperation: list[float],
                  costSourcing: float,
                  capacity: dict[str, float]
                  ):

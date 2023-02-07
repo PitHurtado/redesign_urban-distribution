@@ -1,7 +1,7 @@
 import folium
 import branca.colormap as cm
 from branca.element import Figure
-from classes import Locatable
+from src.classes import Locatable
 
 
 class DrawingMap:

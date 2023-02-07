@@ -9,9 +9,12 @@ class LoadingData:
     @staticmethod
     def load_satellites(DEBUG: bool = False) -> tuple[dict[str, Satellite], pd.DataFrame]:
         satellites = {}
-        df = pd.read_csv('../others/Levantamiento de Información/base_satellites.csv')
+        df = pd.read_csv('../others/data/base_satellites_READY.csv')
         for i in range(len(df)):
             id_s = str(df.nombre[i])
+            cost_operation = list(np.float_(list(str(df.loc[i, 'costOperation']).split("|"))))
+            cost_sourcing = df.loc[i, 'costSourcing']
+            capacity = json.loads(df.loc[i, 'capacity'])
             new_satellite = Satellite(id_s=id_s
                                       , lon=df.longitud[i]
                                       , lat=df.latitud[i]
@@ -19,9 +22,9 @@ class LoadingData:
                                       , durationFromDC=df.loc[i, 'duration.value'] / 3600
                                       , durationInTrafficFromDC=df.loc[i, 'duration_in_traffic.value'] / 3600
                                       , costFixed=json.loads(df.loc[i, 'costFixed'])
-                                      , costOperation=list(np.float_(list(str(df.loc[i, 'cost_operation']).split("|"))))
-                                      , costSourcing=df.loc[i, 'cost_sourcing']
-                                      , capacity=json.loads(df.loc[i, 'capacity'])
+                                      , costOperation=cost_operation
+                                      , costSourcing=cost_sourcing
+                                      , capacity=capacity
                                       )
             satellites[id_s] = new_satellite
         if DEBUG:
@@ -34,33 +37,28 @@ class LoadingData:
     @staticmethod
     def load_customer_clusters(DEBUG: bool = False) -> tuple[dict[str, Cluster], pd.DataFrame]:
         clusters = {}
-        df = pd.read_csv('../others/Levantamiento de Información/Caracterización de hexagonos de La Paz.csv')
+        df = pd.read_csv('../others/data/base_cluster_READY.csv')
 
         # filtered only rows with data cajas > 0
-        df = df[df['suma.cajas'] > 0].reset_index(drop=True).copy()
+        df.dropna(inplace=True)
+        df.reset_index(drop=True, inplace=True)
         #
 
         for i in range(len(df)):
-            id_k = str(df.loc[i, 'h3_address'])
+            id_k = str(df.loc[i, 'id_cluster'])
 
             avg_drop_by_period = list(np.float_(list(str(df.loc[i, 'avgDrop']).split("|"))))
             avg_stop_density_by_period = list(np.float_(list(str(df.loc[i, 'avgStopDensity']).split("|"))))
-            demand = list(np.float_(list(str(df.loc[i, 'demand']).split("|"))))
-
+            demand_by_period = list(np.float_(list(str(df.loc[i, 'demandByPeriod']).split("|"))))
+            customers_by_period = list(np.float_(list(str(df.loc[i, 'avg_customers']).split("|"))))
             new_cluster = Cluster(id_c=id_k
-                                  , lon=df.loc[i, 'lon.centroid']
-                                  , lat=df.loc[i, 'lat.centroid']
-                                  , areaKm=df.loc[i, 'area.km2']
-                                  , avgTickets=df.loc[i, 'media.boletas.mes']
-                                  , avgCustomers=df.loc[i, 'media.clientes.mes']
-                                  , avgPackages=df.loc[i, 'media.suma.cajas.mes']
-                                  , avgPackagesBySales=df.loc[i, 'media.cajas.por.venta']
-                                  , packages=df.loc[i, 'suma.cajas']
-                                  , sales=df.loc[i, 'Cantidad.ventas']
-                                  , customers=df.loc[i, 'Total.clientes']
-                                  , demand=demand
+                                  , lon=df.loc[i, 'lon']
+                                  , lat=df.loc[i, 'lat']
+                                  , areaKm=df.loc[i, 'areakm2']
+                                  , customersByPeriod=customers_by_period
+                                  , demandByPeriod=demand_by_period
                                   , avgDrop=avg_drop_by_period
-                                  , speed_intra=json.loads(df.loc[i, 'speed_intra'])
+                                  , speed_intra=json.loads(df.loc[i, 'intra_stop_speed'])
                                   , avgStopDensity=avg_stop_density_by_period
                                   , k=1
                                   )
@@ -140,7 +138,7 @@ class ConfigDeterministic(Config):
 
     def avg_fleet_size(self, cluster: Cluster, vehicle: Vehicle, t: int, distance: float, **params) -> float:
         # effective vehicle capacity
-        effective_vehicle_capacity = vehicle.capacity / cluster.avgDrop[t]
+        effective_vehicle_capacity = vehicle.capacity / cluster.avgDrop[t] if cluster.avgDrop[t] > 0 else 0
 
         # average tour time
         avg_tour_time = effective_vehicle_capacity * (

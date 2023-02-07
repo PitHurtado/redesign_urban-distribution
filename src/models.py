@@ -1,9 +1,10 @@
 import gurobipy as gb
 from gurobipy import GRB, quicksum
-from classes import Cluster, Satellite
+from src.classes import Cluster, Satellite
+from abc import ABC, abstractmethod
 
 
-class Model:
+class ModelMultiperiod(ABC):
 
     def __init__(self, NAME_MODEL: str) -> None:
         self.model = gb.Model(NAME_MODEL)
@@ -18,11 +19,13 @@ class Model:
     def setParams(self, params: dict[str, int]):
         for key, item in params.items():
             self.model.setParam(key, item)
-    
-    
+
+    @abstractmethod
+    def get_results(self, satellites: list[Satellite], clusters: list[Cluster]) -> dict:
+        pass
 
 
-class ModelDeterministic(Model):
+class ModelDeterministic(ModelMultiperiod):
     """
     DocString
 
@@ -43,7 +46,8 @@ class ModelDeterministic(Model):
         self.results = {}
         self.metrics = {}
 
-    def build(self, satellites: list[Satellite], clusters: list[Cluster], vehicles_required: dict[str, dict], costs: dict[str, dict]) -> dict[str, float]:
+    def build(self, satellites: list[Satellite], clusters: list[Cluster], vehicles_required: dict[str, dict],
+              costs: dict[str, dict]) -> dict[str, float]:
         self.model.reset()
 
         # variables
@@ -67,10 +71,12 @@ class ModelDeterministic(Model):
             in s.capacity.keys()
         ])
         self.X = dict([
-            ((s.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'X_s{s.id}_t{t}')) for s in satellites for t in range(self.PERIODS)
+            ((s.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'X_s{s.id}_t{t}')) for s in satellites for t in
+            range(self.PERIODS)
         ])
         self.Z = dict(
-            [((s.id, k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'Z_s{s.id}_k{k.id}_t{t}')) for s in satellites for k in clusters for t in range(self.PERIODS)]
+            [((s.id, k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'Z_s{s.id}_k{k.id}_t{t}')) for s in satellites
+             for k in clusters for t in range(self.PERIODS)]
         )
         self.W = dict([
             ((k.id, t), self.model.addVar(vtype=GRB.BINARY, name=f'W_k{k.id}_t{t}')) for k in clusters for t in
@@ -96,7 +102,7 @@ class ModelDeterministic(Model):
             costs['dc']['total_cost'][(k.id, t)] * self.W[(k.id, t)] for k in clusters for t in range(self.PERIODS)
         ])
 
-        cost_total = cost_allocation_satellites + cost_served_from_dc + cost_served_from_satellite
+        cost_total = cost_allocation_satellites + cost_served_from_dc + cost_served_from_satellite + cost_operating_satellites
         self.model.setObjective(cost_total, GRB.MINIMIZE)
 
     def __addConstr_AllocationSatellite(self, satellites: list[Satellite]):
@@ -108,7 +114,7 @@ class ModelDeterministic(Model):
                 ]) <= 1
                 , name=nameConstraint
             )
-    
+
     def __addConstr_OperatingSatellite(self, satellites: list[Satellite]):
         for t in range(self.PERIODS):
             for s in satellites:
@@ -121,18 +127,20 @@ class ModelDeterministic(Model):
                     <= 0
                     , name=nameConstraint
                 )
+
     def __addConstr_AssignClusterToSallite(self, satellites: list[Satellite], clusters: list[Cluster]):
         for t in range(self.PERIODS):
             for k in clusters:
                 for s in satellites:
-                    nameConstratin = f'R_Assign_s{s.id}_k{k.id}_t{t}'
+                    nameConstratint = f'R_Assign_s{s.id}_k{k.id}_t{t}'
                     self.model.addConstr(
                         self.Z[(s.id, k.id, t)] - self.X[(s.id, t)]
                         <= 0
-                        , name=nameConstratin
+                        , name=nameConstratint
                     )
 
-    def __addConstr_CapacitySatellite(self, satellites: list[Satellite], clusters: list[Cluster], vehicles_required: dict[str, dict]):
+    def __addConstr_CapacitySatellite(self, satellites: list[Satellite], clusters: list[Cluster]
+                                      , vehicles_required: dict[str, dict]):
         for t in range(self.PERIODS):
             for s in satellites:
                 nameConstraint = f'R_capacity_s{s.id}_t{t}'
@@ -162,8 +170,12 @@ class ModelDeterministic(Model):
                     , name=nameConstraint
                 )
 
+    # abstract method
+    def get_results(self, satellites: list[Satellite], clusters: list[Cluster]) -> dict:
+        pass
 
-class ModelStochastic(Model):
+
+class ModelStochastic(ModelMultiperiod):
     """
     DocString
 
@@ -171,3 +183,7 @@ class ModelStochastic(Model):
 
     def __init__(self, NAME_MODEL: str) -> None:
         super().__init__(NAME_MODEL)
+
+    # abstract method
+    def get_results(self) -> dict:
+        pass
