@@ -63,7 +63,8 @@ class ModelDeterministic(ModelMultiperiod):
         self.__addConstr_CapacitySatellite(satellites, clusters, vehicles_required)
         self.__addConstr_DemandSatified(satellites, clusters)
 
-        return {'time_building': 1000}
+        self.model.update()
+        return {'time_building': 1}
 
     def __addVariables(self, satellites: list[Satellite], clusters: list[Cluster]) -> None:
         self.Y = dict([
@@ -85,24 +86,25 @@ class ModelDeterministic(ModelMultiperiod):
 
     def __addObjective(self, satellites: list[Satellite], clusters: list[Cluster], costs: dict[str, dict]):
         cost_allocation_satellites = quicksum([
-            s.costFixed[q_id] * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
+            (s.costFixed[q_id] / 10) * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
         ])
 
         cost_operating_satellites = quicksum([
-            s.costOperation[t] * self.X[(s.id, t)] for s in satellites for t in range(self.PERIODS)
+            (s.costOperation[t] / 10) * self.X[(s.id, t)] for s in satellites for t in range(self.PERIODS)
         ])
 
         cost_served_from_satellite = quicksum([
-            costs['satellite']['total_cost'][(s.id, k.id, t)] * self.X[(s.id, k.id, t)] for s in satellites for k in
+            costs['satellite'][(s.id, k.id, t)] * self.Z[(s.id, k.id, t)] for s in satellites for k in
             clusters for t in
             range(self.PERIODS)
         ])
 
         cost_served_from_dc = quicksum([
-            costs['dc']['total_cost'][(k.id, t)] * self.W[(k.id, t)] for k in clusters for t in range(self.PERIODS)
+            costs['dc'][(k.id, t)] * self.W[(k.id, t)] for k in clusters for t in range(self.PERIODS)
         ])
 
-        cost_total = cost_allocation_satellites + cost_served_from_dc + cost_served_from_satellite + cost_operating_satellites
+        cost_total = cost_allocation_satellites + cost_served_from_dc + cost_served_from_satellite + \
+                     cost_operating_satellites
         self.model.setObjective(cost_total, GRB.MINIMIZE)
 
     def __addConstr_AllocationSatellite(self, satellites: list[Satellite]):
@@ -122,7 +124,7 @@ class ModelDeterministic(ModelMultiperiod):
                 self.model.addConstr(
                     self.X[(s.id, t)]
                     - quicksum([
-                        self.Y[(s.id, q_id, t)] for q_id in s.capacity.keys()
+                        self.Y[(s.id, q_id)] for q_id in s.capacity.keys()
                     ])
                     <= 0
                     , name=nameConstraint
@@ -172,7 +174,35 @@ class ModelDeterministic(ModelMultiperiod):
 
     # abstract method
     def get_results(self, satellites: list[Satellite], clusters: list[Cluster]) -> dict:
-        pass
+        # variable Y
+        variable_Y = dict([
+            ((s.id, q_id), s) for s in satellites for q_id in s.capacity.keys() if self.Y[(s.id, q_id)].x > 0
+        ])
+
+        variable_X = dict([
+            (t, dict([
+                (s.id, s) for s in satellites if self.X[(s.id, t)].x > 0
+            ])) for t in range(self.PERIODS)
+        ])
+
+        variable_Z = dict([
+            (t, dict([
+                (s.id, [
+                    k for k in clusters if self.Z[(s.id, k.id, t)].x > 0
+                ]) for s in satellites
+            ])) for t in range(self.PERIODS)
+        ])
+
+        variable_W = dict([
+            (t, [
+                k for k in clusters if self.W[(k.id, t)].x > 0
+            ]) for t in range(self.PERIODS)
+        ])
+
+        return {'Y': variable_Y,
+                'X': variable_X,
+                'Z': variable_Z,
+                'W': variable_W}
 
 
 class ModelStochastic(ModelMultiperiod):

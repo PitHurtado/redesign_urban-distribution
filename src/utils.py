@@ -138,7 +138,7 @@ class ConfigDeterministic(Config):
 
     def avg_fleet_size(self, cluster: Cluster, vehicle: Vehicle, t: int, distance: float, **params) -> float:
         # effective vehicle capacity
-        effective_vehicle_capacity = vehicle.capacity / cluster.avgDrop[t] if cluster.avgDrop[t] > 0 else 0
+        effective_vehicle_capacity = (vehicle.capacity / cluster.avgDrop[t]) if cluster.avgDrop[t] > 0 else 0.0
 
         # average tour time
         avg_tour_time = effective_vehicle_capacity * (
@@ -156,7 +156,8 @@ class ConfigDeterministic(Config):
         )
 
         # average fleet size
-        v = (cluster.areaKm * cluster.avgStopDensity[t]) / (beta * effective_vehicle_capacity)
+        v = ((cluster.areaKm * cluster.avgStopDensity[t]) / (
+                    beta * effective_vehicle_capacity)) if effective_vehicle_capacity > 0 else 0.0
 
         return v
 

@@ -16,7 +16,7 @@ class Cluster(Locatable):
                  avgDrop: list[float],
                  speed_intra: dict[str, float],
                  avgStopDensity: list[float],
-                 k: float = 0,
+                 k: float = 0.57,
                  ):
         self.id = id_c
         Locatable.__init__(self, lon, lat)
@@ -49,7 +49,7 @@ class Satellite(Locatable):
         self.durationInTrafficFromDC = durationInTrafficFromDC
         self.costFixed = costFixed
         self.costOperation = costOperation
-        self.costSourcing = costSourcing
+        self.costSourcing = 0.06
         self.capacity = capacity
 
 
@@ -70,7 +70,7 @@ class Vehicle:
         self.type = type
         self.capacity = capacity
         self.costFixed = costFixed
-        self.time_fixed = time_fixed,
+        self.time_fixed = time_fixed
         self.time_service = time_service
         self.time_dispatch = time_dispatch
         self.time_load = time_load
