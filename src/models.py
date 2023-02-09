@@ -86,11 +86,11 @@ class ModelDeterministic(ModelMultiperiod):
 
     def __addObjective(self, satellites: list[Satellite], clusters: list[Cluster], costs: dict[str, dict]):
         cost_allocation_satellites = quicksum([
-            (s.costFixed[q_id] / 10) * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
+            (s.costFixed[q_id] / 30) * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
         ])
 
         cost_operating_satellites = quicksum([
-            (s.costOperation[t] / 10) * self.X[(s.id, t)] for s in satellites for t in range(self.PERIODS)
+            (s.costOperation[t] / 30) * self.X[(s.id, t)] for s in satellites for t in range(self.PERIODS)
         ])
 
         cost_served_from_satellite = quicksum([
