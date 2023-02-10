@@ -49,8 +49,8 @@ class LoadingData:
 
             avg_drop_by_period = list(np.float_(list(str(df.loc[i, 'avgDrop']).split("|"))))
             avg_stop_density_by_period = list(np.float_(list(str(df.loc[i, 'avgStopDensity']).split("|"))))
-            demand_by_period = list(np.float_(list(str(df.loc[i, 'demandByPeriod']).split("|"))))
-            customers_by_period = list(np.float_(list(str(df.loc[i, 'avg_customers']).split("|"))))
+            demand_by_period = list(np.ceil(np.float_(list(str(df.loc[i, 'demandByPeriod']).split("|")))))
+            customers_by_period = list(np.ceil(np.float_(list(str(df.loc[i, 'avg_customers']).split("|")))))
             new_cluster = Cluster(id_c=id_k
                                   , lon=df.loc[i, 'lon']
                                   , lat=df.loc[i, 'lat']
@@ -136,7 +136,7 @@ class ConfigDeterministic(Config):
     def __init__(self) -> None:
         super().__init__()
 
-    def avg_fleet_size(self, cluster: Cluster, vehicle: Vehicle, t: int, distance: float, **params) -> float:
+    def avg_fleet_size(self, cluster: Cluster, vehicle: Vehicle, t: int, distance: float, **params) -> dict[str, float]:
         # effective vehicle capacity
         effective_vehicle_capacity = (vehicle.capacity / cluster.avgDrop[t]) if cluster.avgDrop[t] > 0 else 0.0
 
@@ -159,7 +159,8 @@ class ConfigDeterministic(Config):
         v = ((cluster.areaKm * cluster.avgStopDensity[t]) / (
                     beta * effective_vehicle_capacity)) if effective_vehicle_capacity > 0 else 0.0
 
-        return v
+        return {'fleet_size': v, 'avg_tour_time': avg_tour_time, 'fully_loaded_tours': beta,
+                'effective_capacity': effective_vehicle_capacity, "demand_served": cluster.demandByPeriod[t]}
 
     # overwrite
     def calculate_avg_fleet_size_from_satellites(self, satellites: list[Satellite]
