@@ -48,9 +48,9 @@ class LoadingData:
             id_k = str(df.loc[i, 'id_cluster'])
 
             avg_drop_by_period = list(np.float_(list(str(df.loc[i, 'avgDrop']).split("|"))))
-            avg_stop_density_by_period = list(np.float_(list(str(df.loc[i, 'avgStopDensity']).split("|"))))
-            demand_by_period = list(np.ceil(np.float_(list(str(df.loc[i, 'demandByPeriod']).split("|")))))
-            customers_by_period = list(np.ceil(np.float_(list(str(df.loc[i, 'avg_customers']).split("|")))))
+            avg_stop_density_by_period = list((np.float_(list(str(df.loc[i, 'avgStopDensity']).split("|")))))
+            demand_by_period = list((np.float_(list(str(df.loc[i, 'demandByPeriod']).split("|")))))
+            customers_by_period = list((np.float_(list(str(df.loc[i, 'avg_customers']).split("|")))))
             new_cluster = Cluster(id_c=id_k
                                   , lon=df.loc[i, 'lon']
                                   , lat=df.loc[i, 'lat']
@@ -140,27 +140,40 @@ class ConfigDeterministic(Config):
         # effective vehicle capacity
         effective_vehicle_capacity = (vehicle.capacity / cluster.avgDrop[t]) if cluster.avgDrop[t] > 0 else 0.0
 
+        # time services
+        time_services = vehicle.time_fixed + vehicle.time_service * cluster.avgDrop[t]
+
+        # time intra stop
+        time_intra_stop = (vehicle.k * cluster.k) / (cluster.speed_intra[vehicle.type])
+
         # average tour time
         avg_tour_time = effective_vehicle_capacity * (
-                vehicle.time_fixed +
-                vehicle.time_service * cluster.avgDrop[t] +
-                (vehicle.k * cluster.k) / (cluster.speed_intra[vehicle.type])
+                time_services +
+                time_intra_stop
         )
+        avg_tour_time_particulary = cluster.avgStopDensity[t]*(time_services + time_intra_stop)
+
+        # time preparing
+        time_preparing_dispatch = vehicle.time_dispatch + effective_vehicle_capacity * cluster.avgDrop[t] * vehicle.time_load
+
+        # time line_haul
+        time_line_haul = 2 * (distance * vehicle.k / vehicle.speed_line)
 
         # number of fully loaded tours
         beta = vehicle.Tmax / (
                 avg_tour_time +
-                vehicle.time_dispatch +
-                effective_vehicle_capacity * cluster.avgDrop[t] * vehicle.time_load +
-                2 * (distance * vehicle.k / vehicle.speed_line)
+                time_preparing_dispatch +
+                time_line_haul
         )
 
         # average fleet size
-        v = ((cluster.areaKm * cluster.avgStopDensity[t]) / (
-                    beta * effective_vehicle_capacity)) if effective_vehicle_capacity > 0 else 0.0
+        numerador = (cluster.avgStopDensity[t])
+        denominador = beta * effective_vehicle_capacity
+        v = (numerador / denominador) if denominador > 0 else 0.0
 
         return {'fleet_size': v, 'avg_tour_time': avg_tour_time, 'fully_loaded_tours': beta,
-                'effective_capacity': effective_vehicle_capacity, "demand_served": cluster.demandByPeriod[t]}
+                'effective_capacity': effective_vehicle_capacity, "demand_served": cluster.demandByPeriod[t],
+                'avg_drop': cluster.avgDrop[t], 'avg_stop_density': cluster.avgStopDensity[t]}
 
     # overwrite
     def calculate_avg_fleet_size_from_satellites(self, satellites: list[Satellite]

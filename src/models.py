@@ -1,3 +1,4 @@
+from typing import Any
 import gurobipy as gb
 from gurobipy import GRB, quicksum
 from src.classes import Cluster, Satellite
@@ -63,10 +64,14 @@ class ModelDeterministic(ModelMultiperiod):
         self.__addConstr_CapacitySatellite(satellites, clusters, vehicles_required)
         self.__addConstr_DemandSatified(satellites, clusters)
 
-        print("add constraint de WALDO")
-        self.__addConstr_VEHICLE_dc(clusters, vehicles_required_from_dc=vehicles_required['large'])
-        self.__addConstr_VEHICLE_satellites(satellites, clusters, vehicles_required_from_satellites=vehicles_required['small'])
+        print("1) add WALDO constraints")
+        self.__addConstr_VEHICLE_dc(clusters, vehicles_required_from_dc=vehicles_required['large'], cost_dc=costs)
+        self.__addConstr_VEHICLE_satellites(satellites, clusters,
+                                            vehicles_required_from_satellites=vehicles_required['small']
+                                            , cost_satellites=costs)
 
+        print('2) W to Zero')
+        self.__addConstr_Zero_W(clusters)
         self.model.update()
         return {'time_building': 1}
 
@@ -90,21 +95,21 @@ class ModelDeterministic(ModelMultiperiod):
 
     def __addObjective(self, satellites: list[Satellite], clusters: list[Cluster], costs: dict[str, dict]):
         cost_allocation_satellites = quicksum([
-            (s.costFixed[q_id] / 30) * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
+            (s.costFixed[q_id] / 25) * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
         ])
 
         cost_operating_satellites = quicksum([
-            (s.costOperation[t] / 30) * self.X[(s.id, t)] for s in satellites for t in range(self.PERIODS)
+            (s.costOperation[t] / 25) * self.X[(s.id, t)] for s in satellites for t in range(self.PERIODS)
         ])
 
         cost_served_from_satellite = quicksum([
-            costs['satellite'][(s.id, k.id, t)] * self.Z[(s.id, k.id, t)] for s in satellites for k in
+            costs['satellite'][(s.id, k.id, t)]['total'] * self.Z[(s.id, k.id, t)] for s in satellites for k in
             clusters for t in
             range(self.PERIODS)
         ])
 
         cost_served_from_dc = quicksum([
-            costs['dc'][(k.id, t)] * self.W[(k.id, t)] for k in clusters for t in range(self.PERIODS)
+            costs['dc'][(k.id, t)]['total'] * self.W[(k.id, t)] for k in clusters for t in range(self.PERIODS)
         ])
 
         cost_total = cost_allocation_satellites + cost_served_from_dc + cost_served_from_satellite + \
@@ -177,8 +182,28 @@ class ModelDeterministic(ModelMultiperiod):
                     , name=nameConstraint
                 )
 
-    def __addConstr_VEHICLE_satellites(self, satellites: list[Satellite], clusters: list[Cluster]
-                                       , vehicles_required_from_satellites):
+    # def __addConstr_VEHICLE_satellites(self, satellites: list[Satellite], clusters: list[Cluster]
+    #                                   , vehicles_required_from_satellites
+    #                                   , cost_satellites: dict[str, Any]):
+    #    for t in range(self.PERIODS):
+    #        for s in satellites:
+    #            nameConstraint = f'R_waldo_s{s.id}_t{t}'
+    #            self.model.addConstr(
+    #                quicksum([
+    #                    cost_satellites["satellite"][(s.id, k.id, t)]['shipping'] * self.Z[
+    #                        (s.id, k.id, t)] for k in clusters
+    #                ])
+    #                >=
+    #                quicksum([
+    #                    cost_satellites["fee_required_from_satellite"] *
+    #                    vehicles_required_from_satellites[(s.id, k.id, t)]["fleet_size"] * self.Z[(s.id, k.id, t)]
+    #                    for k in clusters
+    #                ])
+    #                , name=nameConstraint
+    #            )
+
+    def __addConstr_VEHICLE_satellites(self, satellites: list[Satellite], clusters: list[Cluster],
+                                       vehicles_required_from_satellites, cost_satellites: dict[str, Any]):
         for t in range(self.PERIODS):
             for s in satellites:
                 nameConstraint = f'R_waldo_s{s.id}_t{t}'
@@ -186,27 +211,50 @@ class ModelDeterministic(ModelMultiperiod):
                     quicksum([
                         k.demandByPeriod[t] * self.Z[(s.id, k.id, t)] for k in clusters
                     ])
-                    >=
-                    quicksum([
-                        vehicles_required_from_satellites[(s.id, k.id, t)]['fleet_size'] * 297 * self.Z[(s.id, k.id, t)]
-                        for k in clusters
+                    >= quicksum([
+                        cost_satellites["min_items_satellite"] * vehicles_required_from_satellites[(s.id, k.id, t)][
+                            "fleet_size"] * \
+                        self.Z[(s.id, k.id, t)] for k in clusters
                     ])
                     , name=nameConstraint
                 )
 
-    def __addConstr_VEHICLE_dc(self, clusters: list[Cluster], vehicles_required_from_dc):
+    # def __addConstr_VEHICLE_dc(self, clusters: list[Cluster], vehicles_required_from_dc, cost_dc: dict[str, Any]):
+    #    for t in range(self.PERIODS):
+    #        nameConstraint = f'R_waldo_t{t}'
+    #        self.model.addConstr(
+    #            quicksum([
+    #                cost_dc["dc"][(k.id, t)]['shipping'] * self.W[(k.id, t)] for k in clusters
+    #            ])
+    #            >=
+    #            quicksum([
+    #                cost_dc["fee_required_from_dc"] * vehicles_required_from_dc[(k.id, t)]['fleet_size'] * \
+    #                self.W[(k.id, t)] for k in clusters
+    #            ])
+    #            , name=nameConstraint
+    #        )
+
+    def __addConstr_VEHICLE_dc(self, clusters: list[Cluster], vehicles_required_from_dc, cost_dc: dict[str, Any]):
         for t in range(self.PERIODS):
             nameConstraint = f'R_waldo_t{t}'
             self.model.addConstr(
                 quicksum([
                     k.demandByPeriod[t] * self.W[(k.id, t)] for k in clusters
                 ])
-                <=
+                >=
                 quicksum([
-                    vehicles_required_from_dc[(k.id, t)]['fleet_size'] * 297 * self.W[(k.id, t)] for k in clusters
+                    cost_dc["min_items_dc"] * vehicles_required_from_dc[(k.id, t)]['fleet_size'] * \
+                    self.W[(k.id, t)] for k in clusters
                 ])
                 , name=nameConstraint
             )
+
+    def __addConstr_Zero_W(self, clusters: list[Cluster]):
+        for t in range(self.PERIODS):
+            for k in clusters:
+                self.model.addConstr(
+                    self.W[(k.id, t)] == 0
+                )
 
     # abstract method
     def get_results(self, satellites: list[Satellite], clusters: list[Cluster]) -> dict:

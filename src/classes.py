@@ -49,7 +49,7 @@ class Satellite(Locatable):
         self.durationInTrafficFromDC = durationInTrafficFromDC
         self.costFixed = costFixed
         self.costOperation = costOperation
-        self.costSourcing = 0.06
+        self.costSourcing = 0.389
         self.capacity = capacity
 
 
