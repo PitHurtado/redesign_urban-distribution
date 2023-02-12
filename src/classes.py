@@ -1,81 +1,79 @@
-class Segment:
+class Locatable:
+    def __init__(self
+                 , lon: float
+                 , lat: float):
+        self.lon = lon
+        self.lat = lat
+
+
+class Cluster(Locatable):
     def __init__(self,
-                 id: str,
+                 id_c: str,
                  lon: float, lat: float,
                  areaKm: float,
-                 avgTickets: float,
-                 avgCustomers: float,
-                 avgPackages: float,
-                 avgPackagesBySales: float,
-                 packages: float,
-                 sales: float,
-                 customers: int,
-                 avgDropSize: float,
-                 setSatellitesCoverage: list[str],
-                 costServedFromDC: int,
+                 customersByPeriod: list[float],
+                 demandByPeriod: list[float],
+                 avgDrop: list[float],
+                 speed_intra: dict[str, float],
+                 avgStopDensity: list[float],
+                 k: float = 0.57,
                  ):
-        self.id = id
-        self.geographyLocation = (lon, lat)
+        self.id = id_c
+        Locatable.__init__(self, lon, lat)
         self.areaKm = areaKm
-        self.avgTickets = avgTickets
-        self.avgCustomers = avgCustomers
-        self.avgPackages = avgPackages
-        self.avgPackagesBySales = avgPackagesBySales
-        self.packages = packages
-        self.customers = customers
-        self.sales = sales
-        self.avgDropSize = avgDropSize
-        self.setSatelliteCoverage = setSatellitesCoverage
-        self.costServedFromDC = costServedFromDC
+        self.customersByPeriod = customersByPeriod
+        self.demandByPeriod = demandByPeriod
+        self.avgDrop = avgDrop
+        self.avgStopDensity = avgStopDensity
+        self.speed_intra = speed_intra
+        self.k = k
 
 
-class Satellite:
+class Satellite(Locatable):
     def __init__(self,
-                 id: str,
+                 id_s: str,
                  lon: float, lat: float,
                  distanceFromDC: float,
                  durationFromDC: float,
                  durationInTrafficFromDC: float,
-                 costFixed: float,
-                 costPerVehicle: float,
+                 costFixed: dict[str, float],
+                 costOperation: list[float],
+                 costSourcing: float,
+                 capacity: dict[str, float]
                  ):
-        self.id = id
-        self.lon = lon
-        self.lat = lat
-        self.geographyLocation = (lon, lat)
+        self.id = id_s
+        Locatable.__init__(self, lon, lat)
+
         self.distanceFromDC = distanceFromDC
         self.durationFromDC = durationFromDC
         self.durationInTrafficFromDC = durationInTrafficFromDC
         self.costFixed = costFixed
-        self.costPerVehicle = costPerVehicle
-
-
-class Customer:
-    def __init__(self,
-                 id: str,
-                 lon: float, lat: float,
-                 demand: list[float],
-                 category: float,
-                 isLow: bool,
-                 fee_min_satellite: float,
-                 fee_min_dc: float,
-                 ):
-        self.id = str(id)
-        self.lon = lon
-        self.lat = lat
-        self.geographyLocation = (lon, lat)
-        self.demand = demand
-        self.category = category
-        self.isLow = isLow
-        self.fee_min_satellite = fee_min_satellite
-        self.fee_min_dc = fee_min_dc
+        self.costOperation = costOperation
+        self.costSourcing = 0.389
+        self.capacity = capacity
 
 
 class Vehicle:
     def __init__(self
                  , id: str
+                 , type: str
                  , capacity: float
-                 , cost: float):
+                 , costFixed: float
+                 , time_service: float
+                 , time_fixed: float
+                 , time_dispatch: float
+                 , time_load: float
+                 , speed_line: float
+                 , Tmax: float
+                 , k: float):
         self.id = str(id)
+        self.type = type
         self.capacity = capacity
-        self.cost = cost
+        self.costFixed = costFixed
+        self.time_fixed = time_fixed
+        self.time_service = time_service
+        self.time_dispatch = time_dispatch
+        self.time_load = time_load
+        self.speed_line = speed_line
+        self.Tmax = Tmax
+        self.k = k
