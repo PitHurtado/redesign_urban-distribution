@@ -15,7 +15,7 @@ class Cluster(Locatable):
                  demandByPeriod: list[float],
                  avgDrop: list[float],
                  speed_intra: dict[str, float],
-                 avgStopDensity: list[float],
+                 avgStop: list[float],
                  k: float = 0.57,
                  ):
         self.id = id_c
@@ -24,9 +24,9 @@ class Cluster(Locatable):
         self.customersByPeriod = customersByPeriod
         self.demandByPeriod = demandByPeriod
         self.avgDrop = avgDrop
-        self.avgStopDensity = avgStopDensity
+        self.avgStop = avgStop
         self.speed_intra = speed_intra
-        self.k = k
+        self.k = 0.57
 
 
 class Satellite(Locatable):
@@ -49,7 +49,7 @@ class Satellite(Locatable):
         self.durationInTrafficFromDC = durationInTrafficFromDC
         self.costFixed = costFixed
         self.costOperation = costOperation
-        self.costSourcing = 0.389
+        self.costSourcing = 0.389/5 ### WALDO
         self.capacity = capacity
 
 

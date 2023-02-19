@@ -64,14 +64,17 @@ class ModelDeterministic(ModelMultiperiod):
         self.__addConstr_CapacitySatellite(satellites, clusters, vehicles_required)
         self.__addConstr_DemandSatified(satellites, clusters)
 
-        print("1) add WALDO constraints")
-        self.__addConstr_VEHICLE_dc(clusters, vehicles_required_from_dc=vehicles_required['large'], cost_dc=costs)
-        self.__addConstr_VEHICLE_satellites(satellites, clusters,
-                                            vehicles_required_from_satellites=vehicles_required['small']
-                                            , cost_satellites=costs)
+        #print("1) add WALDO constraints")
+        #self.__addConstr_VEHICLE_dc(clusters, vehicles_required_from_dc=vehicles_required['large'], cost_dc=costs)
+        #self.__addConstr_VEHICLE_satellites(satellites, clusters,
+        #                                    vehicles_required_from_satellites=vehicles_required['small']
+        #                                    , cost_satellites=costs)
 
-        print('2) W to Zero')
-        self.__addConstr_Zero_W(clusters)
+        #print('2) W to Zero')
+        #self.__addConstr_Zero_W(clusters)
+
+        #print('3) Y to Zero')
+        #self.__addConstr_Zero_Y(satellites)
         self.model.update()
         return {'time_building': 1}
 
@@ -95,7 +98,7 @@ class ModelDeterministic(ModelMultiperiod):
 
     def __addObjective(self, satellites: list[Satellite], clusters: list[Cluster], costs: dict[str, dict]):
         cost_allocation_satellites = quicksum([
-            (s.costFixed[q_id] / 25) * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
+            (s.costFixed[q_id] / (25*12)) * self.Y[(s.id, q_id)] for s in satellites for q_id in s.capacity.keys()
         ])
 
         cost_operating_satellites = quicksum([
@@ -256,6 +259,16 @@ class ModelDeterministic(ModelMultiperiod):
                     self.W[(k.id, t)] == 0
                 )
 
+    def __addConstr_Zero_Y(self, satellites: list[Satellite]):
+        for s in satellites:
+            nameConstraint = f'R_Y_zero_s{s.id}'
+            self.model.addConstr(
+                quicksum([
+                    self.Y[(s.id, q_id)] for q_id in s.capacity.keys()
+                ]) == 0
+                , name=nameConstraint
+            )
+
     # abstract method
     def get_results(self, satellites: list[Satellite], clusters: list[Cluster]) -> dict:
         # variable Y
@@ -291,13 +304,25 @@ class ModelDeterministic(ModelMultiperiod):
 
 class ModelStochastic(ModelMultiperiod):
     """
-    DocString
+        SAA: Sample Average Approximation
 
     """
-
-    def __init__(self, NAME_MODEL: str) -> None:
+    def __init__(self, NAME_MODEL: str, first_stage_model, second_stage_model) -> None:
         super().__init__(NAME_MODEL)
+        self.first_stage_model = first_stage_model
+        self.second_stage_model = second_stage_model
+
+    def build(self, first_stage_model, second_stage_model, scenarios: dict):
+        pass
+
+    def optimizeModel(self) -> str:
+        # algoritmo
+        pass
+    
+
 
     # abstract method
     def get_results(self) -> dict:
         pass
+
+#%%
