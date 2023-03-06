@@ -49,7 +49,7 @@ class Satellite(Locatable):
         self.durationInTrafficFromDC = durationInTrafficFromDC
         self.costFixed = costFixed
         self.costOperation = costOperation
-        self.costSourcing = 0.389/5 ### WALDO
+        self.costSourcing = 0.335/2 ### WALDO
         self.capacity = capacity
 
 
@@ -77,3 +77,5 @@ class Vehicle:
         self.speed_line = speed_line
         self.Tmax = Tmax
         self.k = k
+
+#%%

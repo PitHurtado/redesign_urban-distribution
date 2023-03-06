@@ -14,7 +14,12 @@ class LoadingData:
         df = pd.read_csv('../others/data/base_satellites_READY_zoom_7.csv')
         for i in range(len(df)):
             id_s = str(df.id_satellite[i])
-            cost_operation = list(np.float_(list(str(df.loc[i, 'costOperation']).split("|"))))
+
+            aux = json.loads(df.loc[i, 'costOperation'])
+            for k, v in aux.items():
+                aux[k] = list(np.float_(list(str(v).split("|"))))
+            cost_operation = aux
+
             cost_sourcing = df.loc[i, 'costSourcing']
             capacity = json.loads(df.loc[i, 'capacity'])
             new_satellite = Satellite(id_s=id_s
